@@ -1,0 +1,143 @@
+#include "msp430.h"                     ; #define controlled include file
+
+        NAME    main                    ; module name
+
+        PUBLIC  main                    ; make the main label visible
+                                        ; outside this module
+        ORG     0FFFEh
+        DC16    init                    ; set reset vector to 'init' label
+
+        RSEG    CSTACK                  ; pre-declaration of segment
+        RSEG    CODE                    ; place program in 'CODE' segment
+
+init:   MOV     #SFE(CSTACK), SP        ; set up stack
+
+UnlockGPIO:                             ; Disable de GPIO power-on default
+        bic.w   #LOCKLPM5,&PM5CTL0      ; high-impedance mode to activade
+                                        ; previously configured port settings
+setupPorts:     
+        bis.b #0xFF, &P1DIR   ; set P1-P9 pins to output
+        bis.b #0xFF, &P9DIR            
+        bic.b #BIT0, &P1OUT   ; reset value of the LEDs
+        bic.b #BIT7, &P9OUT   
+
+
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+
+        ; Ex. 1 
+        MOV #6, R5 
+        MOV #6, R6
+        MOV #5, R7
+        call #sonIguales
+        
+        ; Ex. 2
+        push.w #0x0002
+        push.w #0x0004 
+        call #swapWords
+        
+        ; Ex. 3
+        MOV #100, R5  ; 3 1s
+        call #setupCountBits
+        
+        ; Ex. 4
+        MOV #3, R5
+        call #cualEnciendo
+        
+        ; Ex. 5
+        MOV #5, R5
+        call #setupSum
+        
+        ; Ex. 6
+        MOV #12, R5
+        MOV #34, R6
+        MOV #56, R7
+        MOV #78, R8
+        call #setupSum32
+        jmp programEnd
+        
+
+sonIguales:
+        cmp R5, R6 
+        jne noSonIguales  ; continue testing if registers are the same
+        cmp R6, R7
+        jne noSonIguales
+        MOV #1, R7        ; all comparisons passed
+        ret
+        
+noSonIguales: 
+        clr R7
+        ret         ; stop comparing nums immediately; will return to mainloop
+
+swapWords:
+        pop R5
+        pop R6
+        push.w R5
+        push.w R6
+        ; Optional: Clear the stack for later problems 
+        pop R7  ; save into arbitrary register, doesn't matter
+        ret     ; remember this pops PC from the stack at the end, emptying it
+
+setupCountBits: 
+        MOV #0, R6  ; set counter to 0
+        MOV #16, R7 ; rotation width (16 bits) 
+        jmp cuantosUnos
+
+cuantosUnos:
+        rra R5     ; shift bits and add carry (LSB) onto total sum
+        adc R6     ; keep track of total sum of 1s 
+        dec R7
+        jnz cuantosUnos ; restart execution loop 
+                        ; if we haven't gone through all bits
+        ret
+
+cualEnciendo:
+        dec R5 
+        jz redLED  ; R5 == 1 - 1 jumps to red LED
+        dec R5     ; now decremented twice
+        jz greenLED
+        dec R5     ; now decremented thrice
+        jz bothLEDs
+        ret        ; if R5 == 0, it will never be 0 and thus nothing happens
+
+redLED:
+      bis.b #BIT0, &P1OUT  ; set red led ON
+      ret
+      
+greenLED:
+      bis.b #BIT7, &P9OUT  ; toggle green LED
+      ret
+      
+bothLEDs:
+      bis.b #BIT0, &P1OUT
+      bis.b #BIT7, &P9OUT  ; toggle both LEDs
+      ret
+
+setupSum: 
+      MOV #0, R6
+      jmp sumaSecuencia
+      
+sumaSecuencia:
+      add R5, R6
+      dec R5
+      jnz sumaSecuencia
+      ret
+
+setupSum32:
+      MOV #0, R9
+      MOV #0, R10
+      jmp suma32
+      
+suma32:
+      MOV R8, R10  ; move to final locations from the start (R10 = R8 + R6)
+      MOV R7, R9
+      add R6, R10
+      addc R5, R9 ; R9 = R7 + R5
+      ret
+
+programEnd:
+        JMP $                           ; jump to current location '$'
+                                        ; (endless loop)
+        NOP
+        END
+        

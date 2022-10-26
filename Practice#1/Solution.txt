@@ -1,0 +1,122 @@
+#include "msp430.h"                     ; #define controlled include file
+
+        NAME    main                    ; module name
+
+        PUBLIC  main                    ; make the main label vissible
+                                        ; outside this module
+        ORG     0FFFEh
+        DC16    init                    ; set reset vector to 'init' label
+
+        RSEG    CSTACK                  ; pre-declaration of segment
+        RSEG    CODE                    ; place program in 'CODE' segment
+
+init:   MOV     #SFE(CSTACK), SP        ; set up stack
+
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+
+UnlockGPIO:                             ; Disable de GPIO power-on default
+        bic.w   #LOCKLPM5,&PM5CTL0      ; high-impedance mode to activade
+                                        ; previously configured port settings
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;Intercambia valores en tope del stack
+        push.w  #0x1234                 ;colocando valores en tope del stack
+        push.w  #0x5678
+        
+        pop     R5                      ;cuatro instrucciones que intercambian
+        pop     R6                      ;los dos words en el tope del stack
+        push.w  R5
+        push.w  R6
+        
+        pop     R5                      ;dejar el stack como estaba antes de
+        pop     R5                      ;las instrucciones para intercambiar
+                                        ;los dos valores en el tope
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        mov     #5,R5                   ;probando subrutina sonIguales
+        mov     #5,R6
+        mov     #5,R7
+        call    #sonIguales
+        
+        mov     #0x8005,R5              ;probando subrutina cuantosUnos
+        call    #cuantosUnos    
+        
+        mov     #2,R5                   ;probando subrutina cualEnciendo
+        call    #cualEnciendo
+
+        mov     #20,R5                  ;probando subrutina sumaSecuencia
+        call    #sumaSecuencia
+        
+        mov     #0x1234,R5
+        mov     #0x5678,R6
+        mov     #0x9ABC,R7
+        mov     #0xDEF0,R8
+        call    #suma32
+        
+
+        JMP $                           ; jump to current location '$'
+        NOP                             ; (endless loop)
+
+sonIguales:
+        push.W  R8
+        mov     #1,R8
+        cmp     R5,R6
+        jne     noIguales
+        cmp     R6,R7
+        jne     noIguales
+        jmp     fin
+noIguales:
+        mov     #0,R8
+        
+fin:    mov     R8,R7
+        pop     R8
+        ret
+
+cuantosUnos:
+        push.w  R5
+        push.w  R7
+        mov     #0,R6
+        mov     #16,R7
+nextCuantos:        
+        rra     R5
+        adc     R6
+        dec     R7
+        jnz     nextCuantos
+        pop     R7
+        pop     R5
+        ret
+
+cualEnciendo:
+        cmp     #1,R5
+        jeq     enciendeRojo
+        cmp     #2,R5
+        jeq     enciendeVerde
+        jmp     finEncender
+enciendeRojo:
+        bis.b   #1,&P1DIR
+        bis.b   #1,&P1OUT
+        jmp     finEncender
+enciendeVerde:
+        bis.b   0xF0,&P9DIR
+        bis.b   0xF0,&P9OUT
+finEncender:
+        ret
+
+sumaSecuencia:
+        push.w  R5
+        mov     #0,R6
+nextSuma:
+        add     R5,R6
+        dec     R5
+        jnz     nextSuma
+        pop     R5
+        ret
+
+suma32:
+        mov     R7,R9
+        mov     R8,R10
+        add     R6,R10
+        addc    R5,R9
+        ret
+
+        END
