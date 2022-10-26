@@ -1,0 +1,90 @@
+#include "msp430.h"                     ; #define controlled include file
+
+        NAME    main                    ; module name
+
+        PUBLIC  main                    ; make the main label vissible
+                                        ; outside this module
+        ORG     0FFFEh
+        DC16    init                    ; set reset vector to 'init' label
+
+        ORG     0C000h
+        db      '*****'
+str     db      'pepitoPerez/' 
+valores db      1110000b, 00001111b, 11001100b, 00110011b, 10101010b, 01010101b
+        align   1                       ; force next array at even address
+otraLista dw    25, 30, 0, 48, 31, 0
+        
+        RSEG    CSTACK                  ; pre-declaration of segment
+        RSEG    CODE                    ; place program in 'CODE' segment
+
+init:   MOV     #SFE(CSTACK), SP        ; set up stack
+
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+        call    #largo
+        call    #manipulaBits
+        call    #paresEImpares
+        JMP $                           ; jump to current location '$'
+        NOP                             ; (endless loop)
+
+;Not the shortest but with efficient loop        
+largo:
+        push.w  r6                      ;to hold copy of string address
+        push.w  r8                      ;to hold copy of / ASCII in order to
+                                        ;be able to use it at source position
+        mov.b   #'/',r8                 ;r8 <- ASCII of /
+        mov.w   #str,r7                 ;r7 <- address of str
+        mov.w   r7,r6
+nextComp:
+        cmp.b   @r7+,r8                 ;compares if character is a /
+        jeq     subLargoFin
+        jmp     nextComp
+subLargoFin:
+        dec     r7                      ;r7 - 1 due to the use of post-increment
+        sub     r6,r7                   ;length = where it ends - where it started
+        pop     r8
+        pop     r6
+        ret
+
+manipulaBits:
+        push.w  r5
+        push.w  r6
+        mov     #6,r6                   ;use r6 as counter
+        mov     #valores, r5            ;r5: pointer to array values
+proxByte:
+        bis.b   #10000000b,0(r5)        ;set
+        bic.b   #00000001b,0(r5)        ;clear
+        xor.b   #00000010b,0(r5)        ;invert
+        inc     r5
+        dec     r6
+        jnz     proxByte
+        pop     r6
+        pop     r5
+        ret
+        
+paresEImpares:
+        push.w  r5
+        push.w  r9
+        mov     #0, r6
+        mov     #0, r7
+        mov     #0, r8
+        mov     #otraLista, r5          ;r5 <- address of otra lista
+        mov     #6, r9                  ;r9 as counter
+nextValue:
+        bit.b   #1, 0(r5)               ;test last bit
+        jnz     impar
+        tst.b   0(r5)                   ;test if zero
+        jeq     cero
+        jmp     par                     ;0's not counted as even numbers
+impar:  inc     r7
+        jmp     done
+cero:   inc     r8
+        jmp     done
+par:    inc     r6
+done:   incd    r5                      ;inc by 2 because word type array
+        dec     r9
+        jnz     nextValue
+        pop     r9
+        pop     r5
+        ret
+        END

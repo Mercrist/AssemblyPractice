@@ -1,0 +1,113 @@
+#include "msp430.h"                     ; #define controlled include file
+
+        NAME    main                    ; module name
+
+        PUBLIC  main                    ; make the main label vissible
+                                        ; outside this module
+        ORG     0FFFEh
+        DC16    init                    ; set reset vector to 'init' label
+        ORG     0x1C00                  ; RAM starting location
+
+; sets the battery segments (check ppt diagrams)
+blueSegment dw 00100000b, 00000000b, 01000000b, 00000000b, 10000000b, 00000000b
+redSegment  dw 00000000b, 00100000b, 00000000b, 01000000b, 00000000b, 10000000b
+
+        RSEG    CSTACK                  ; pre-declaration of segment
+        RSEG    CODE                    ; place program in 'CODE' segment
+
+init:   MOV     #SFE(CSTACK), SP        ; set up stack
+
+UnlockGPIO:                             ; Disable de GPIO power-on default
+        bic.w   #LOCKLPM5,&PM5CTL0      ; high-impedance mode to activade
+                                        ; previously configured port settings
+setupDisplayAndPorts:     
+        ; Manage Ports
+        bis.b #11111001B, &P1DIR   ; set P1.1/2 to input 
+        mov.b #00000110B, &P1REN   ; Activate P1.1/2 pull-up/down resistors
+        bis.b #11111001B, &P1OUT   ; set P1.1/2 pull down resistor
+        bic.b #BIT0,&P1OUT         ; set P1.0 LED off (annoying)
+
+        ; Enable LCD segments: 0-21, 26-43
+        mov #0xFFFF, &LCDCPCTL0
+        mov #0xFC3F, &LCDCPCTL1
+        mov #0x0FFF, &LCDCPCTL2
+          
+        ; Initialize LCD magic
+        mov #0x041e,&LCDCCTL0 ; sets display with hardware specs needed
+        mov #0x0208, &LCDCVCTL ; enable voltage for display
+        mov #0x8000, &LCDCCPCTL ; enable clock synchronization
+        mov #2, &LCDCMEMCTL ; clear LCD memory (resets screen)
+        bis #1, &LCDCCTL0 ; turn the LCD on
+
+
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+        ; Uncomment any of the functions below to test them 
+        
+        ; Ex. 1
+        ; call #buttonLoop1
+        ; mov #2, &LCDCMEMCTL ; clear screen (remove to keep display)
+        ; Ex. 2
+        ; call #buttonLoop2
+        ; mov #2, &LCDCMEMCTL
+        ; Ex. 3
+        mov.b #00010000b, &0xA31 ; turns on battery outline
+        mov.b #00010000b, &0xA2D ; turns on battery tip
+        mov #6, R6 ; number of segments on the battery charge
+        mov #0, R7 ; pointer for array
+        call #buttonLoop3
+        jmp programEnd
+
+; Ex. 1 subroutines
+buttonLoop1:
+        mov.b &P1IN, R5  ; copy value of input signal
+        and.b #00000010B, R5 ; extract only bits we care about
+        cmp.b #00000000B, R5 ; if pressed (sets to 0 when pressed)
+        jeq plusSign
+        jmp buttonLoop1
+
+plusSign:
+        mov.b #0x50, &0xA24 ; sets inner vertical lines in + (01010000)
+        mov.b #0x03, &0xA23 ; sets outer two horizontal lines (00000011)
+        ret                 ; change to jmp buttonLoop2 for proper mainloop
+
+; Ex. 2 subroutines
+buttonLoop2:
+        mov.b &P1IN, R5  ; copy value of input signal
+        and.b #00000110B, R5 ; bit mask for pins 1 and 2
+        cmp.b #00000100B, R5 ; P1.1 pressed and P1.2 up
+        jeq heartIconOn
+        ; check for P1.2 button presses
+        cmp.b #00000010B, R5 ; if P1.2 pressed 
+        jeq heartIconOff
+        jmp buttonLoop2    
+
+heartIconOn:
+        mov.b #0x04, &0xA22 ; turn heart on
+        jmp buttonLoop2
+
+heartIconOff:
+        mov.b #0, &0xA22 ; turn heart off
+        ret  ; change to jmp buttonLoop2 for proper mainloop
+
+; Ex. 3 subroutines (with debouncing)
+buttonLoop3:
+        mov.b &P1IN, R5  ; copy value of input signal
+        and.b #00000010B, R5 ; extract P1.1 bit
+        cmp.b #00000000B, R5 ; if pressed (sets to 0 when pressed)
+        jeq increaseBatterySegment
+        jmp buttonLoop3
+        
+increaseBatterySegment:
+        bis.b redSegment(R7), &0xA2D
+        bis.b blueSegment(R7), &0xA31
+        incd R7
+        dec R6
+        jnz buttonLoop3
+        jmp programEnd ; end program once battery is complete
+
+programEnd:
+        JMP $                           ; jump to current location '$'
+                                        ; (endless loop)
+        NOP
+        END
