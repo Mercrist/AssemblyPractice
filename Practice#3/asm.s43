@@ -58,7 +58,7 @@ main:   NOP                             ; main program
         call #buttonLoop3
         jmp programEnd
 
-; Ex. 1 subroutines
+; Ex. 1 subroutines (without debouncing)
 buttonLoop1:
         mov.b &P1IN, R5  ; copy value of input signal
         and.b #00000010B, R5 ; extract only bits we care about
@@ -71,7 +71,7 @@ plusSign:
         mov.b #0x03, &0xA23 ; sets outer two horizontal lines (00000011)
         ret                 ; change to jmp buttonLoop2 for proper mainloop
 
-; Ex. 2 subroutines
+; Ex. 2 subroutines (without debouncing)
 buttonLoop2:
         mov.b &P1IN, R5  ; copy value of input signal
         and.b #00000110B, R5 ; bit mask for pins 1 and 2
@@ -95,16 +95,33 @@ buttonLoop3:
         mov.b &P1IN, R5  ; copy value of input signal
         and.b #00000010B, R5 ; extract P1.1 bit
         cmp.b #00000000B, R5 ; if pressed (sets to 0 when pressed)
-        jeq increaseBatterySegment
+        jeq buttonReleased
         jmp buttonLoop3
+        
+buttonReleased:
+        mov.b &P1IN, R5
+        and.b #00000010B, R5
+        cmp.b #00000010B, R5  ; P1.1 should be released if only pressed once
+        jeq increaseBatterySegment
+        jmp buttonLoop3  ; go back to reading the port if the button wasn't
+                         ; released
         
 increaseBatterySegment:
         bis.b redSegment(R7), &0xA2D
         bis.b blueSegment(R7), &0xA31
         incd R7
         dec R6
-        jnz buttonLoop3
-        jmp programEnd ; end program once battery is complete
+        jnz delay
+        ret ; end program once battery is complete
+
+delay:
+        mov #11111, R10 
+        jmp loop
+
+loop:
+        dec R10
+        jz buttonLoop3  ; go back to reading input
+        jmp loop
 
 programEnd:
         JMP $                           ; jump to current location '$'

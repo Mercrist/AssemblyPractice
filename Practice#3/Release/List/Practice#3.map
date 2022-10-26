@@ -2,7 +2,7 @@
 #                                                                              #
 #      IAR Universal Linker V6.6.2.104                                         #
 #                                                                              #
-#           Link time     =  26/Oct/2022  14:27:26                             #
+#           Link time     =  26/Oct/2022  19:30:39                             #
 #           Target CPU    =  MSP430                                            #
 #           List file     =  "D:\RUM\Fall 2022\Arqui 2\Practice\Practice#3\Rel #
 #                            ease\List\Practice#3.map"                         #
@@ -12,7 +12,7 @@
 #                            UBROF version 10.0.6                              #
 #                            Using library modules for C-SPY (-rt)             #
 #           Command line  =  -f                                                #
-#                            C:\Users\YARIEL~1\AppData\Local\Temp\EW3DB7.tmp   #
+#                            C:\Users\YARIEL~1\AppData\Local\Temp\EWDFA8.tmp   #
 #                            ("D:\RUM\Fall 2022\Arqui 2\Practice\Practice#3\Re #
 #                            lease\Obj\asm.r43"                                #
 #                            -o                                                #
@@ -128,7 +128,7 @@ CSTACK
   Segment part 0. ROOT 
     -------------------------------------------------------------------------
 <CODE> 1 (was CODE)
-  Relative segment, address: 4400 - 44C3 (0xc4 bytes), align: 1
+  Relative segment, address: 4400 - 44DB (0xdc bytes), align: 1
   Segment part 1. ROOT        Intra module refs:   Absolute parts
            ENTRY                   ADDRESS         REF BY
            =====                   =======         ======
@@ -147,7 +147,7 @@ CSTACK
 SEGMENT              SPACE    START ADDRESS   END ADDRESS     SIZE  TYPE  ALIGN
 =======              =====    =============   ===========     ====  ====  =====
 CSTACK                                 2360 - 23FF              A0   rel    1
-<CODE> 1                               4400 - 44C3              C4   rel    1
+<CODE> 1                               4400 - 44DB              DC   rel    1
                                        1C00 - 1C17              18  aseg  
                                        FFFE - FFFF               2  aseg  
 
@@ -157,7 +157,7 @@ CSTACK                                 2360 - 23FF              A0   rel    1
                 *                                      *
                 ****************************************
 
- 196 bytes of CODE memory (+ 26 absolute )
+ 220 bytes of CODE memory (+ 26 absolute )
  160 bytes of DATA memory
 
 Errors: none
